@@ -94,7 +94,7 @@ export async function listApiKeys(c: Context): Promise<Omit<ApiKey, 'key'>[]> {
     const data = await c.env.KEYS_KV.get(key.name);
     if (data) {
       const parsed: ApiKey = JSON.parse(data);
-      apiKeys.push({ ...parsed, key: '***' }); // mask key
+      apiKeys.push({ id: parsed.id, name: parsed.name, created_at: parsed.created_at } as Omit<ApiKey, 'key'>); // mask key
     }
   }
   return apiKeys;
