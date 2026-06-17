@@ -16,13 +16,16 @@ interface TelegramUpdate {
 
 const TELEGRAM_API = 'https://api.telegram.org/bot';
 
-export async function webhookHandler(c: Context): Promise<void> {
+export async function webhookHandler<T extends Context['env']>(c: import('hono').Context<{ Bindings: T }>): Promise<void> {
   const botUsername = c.req.param('bot_username');
   if (!botUsername) {
     console.log('Missing bot_username parameter');
     return;
   }
-  const botConfig = await getBotConfig(c, botUsername);
+  
+  // Cast to Context for compatibility with existing helper functions
+  const ctx = c as unknown as Context;
+  const botConfig = await getBotConfig(ctx, botUsername);
   
   if (!botConfig || !botConfig.is_active) {
     console.log(`Bot ${botUsername} not found or inactive`);
@@ -47,12 +50,12 @@ export async function webhookHandler(c: Context): Promise<void> {
 
   // Handle /start command with welcome message
   if (message.text === '/start') {
-    await sendWelcomeMessage(c, botConfig, message);
+    await sendWelcomeMessage(ctx, botConfig, message);
     return;
   }
 
   // Process message
-  await processMessage(c, botConfig, message);
+  await processMessage(ctx, botConfig, message);
 }
 
 async function getBotConfig(c: Context, username: string): Promise<BotConfig | null> {
