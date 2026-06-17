@@ -5,6 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 [assets]
 directory = "./dist/admin"
+binding = "__STATIC_CONTENT"
 
 [vars]
 ENVIRONMENT = "production"
