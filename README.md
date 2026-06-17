@@ -107,53 +107,16 @@ Each command will output a namespace ID. Copy these IDs.
 
 ### 5. Update wrangler.toml with KV Namespace IDs
 
-After creating the namespaces, update your `wrangler.toml` file. You can do this in two ways:
-
-#### Option A: Using Preview and Production IDs
-
-```toml
-[[kv_namespaces]]
-binding = "BOT_REGISTRY"
-id = "your-bot-registry-namespace-id"
-preview_id = "your-bot-registry-preview-namespace-id"
-
-[[kv_namespaces]]
-binding = "SESSION_KV"
-id = "your-session-kv-namespace-id"
-preview_id = "your-session-kv-preview-namespace-id"
-
-[[kv_namespaces]]
-binding = "KEYS_KV"
-id = "your-keys-kv-namespace-id"
-preview_id = "your-keys-kv-preview-namespace-id"
-
-[[kv_namespaces]]
-binding = "SETTINGS_KV"
-id = "your-settings-kv-namespace-id"
-preview_id = "your-settings-kv-preview-namespace-id"
-```
-
-#### Option B: Using Environment-Specific Configuration
-
-```toml
-[env.production]
-kv_namespaces = [
-  { binding = "BOT_REGISTRY", id = "prod-bot-registry-id" },
-  { binding = "SESSION_KV", id = "prod-session-id" },
-  { binding = "KEYS_KV", id = "prod-keys-id" },
-  { binding = "SETTINGS_KV", id = "prod-settings-id" }
-]
-
-[env.preview]
-kv_namespaces = [
-  { binding = "BOT_REGISTRY", id = "preview-bot-registry-id" },
-  { binding = "SESSION_KV", id = "preview-session-id" },
-  { binding = "KEYS_KV", id = "preview-keys-id" },
-  { binding = "SETTINGS_KV", id = "preview-settings-id" }
-]
-```
-
-> **Note**: The current `wrangler.toml` intentionally omits `kv_namespaces` to preserve Dashboard-configured bindings. If you're managing everything via CLI, add the namespaces as shown above.
+> **⚠️ CRITICAL WARNING: DO NOT ADD kv_namespaces TO wrangler.toml! ⚠️**
+> 
+> If you define `kv_namespaces` in `wrangler.toml`, Wrangler will **OVERWRITE and DELETE all bindings configured in the Cloudflare Dashboard**. This includes ALL KV namespaces, secrets, and other bindings.
+> 
+> **To preserve your Dashboard bindings:**
+> - Configure KV namespace bindings ONLY in the Cloudflare Dashboard UI
+> - NEVER add a `[[kv_namespaces]]` block to `wrangler.toml`
+> - The current `wrangler.toml` intentionally omits `kv_namespaces` for this reason
+> 
+> If you accidentally add `kv_namespaces` to `wrangler.toml` and deploy, you will need to manually re-add all bindings in the Dashboard.
 
 ### 6. Build the Admin Dashboard
 
@@ -180,6 +143,23 @@ After deployment, note the URL provided (e.g., `https://bot.your-subdomain.worke
 ---
 
 ## Cloudflare Dashboard Configuration
+
+### ⚠️ CRITICAL WARNING ABOUT BINDINGS ⚠️
+
+**DO NOT add `kv_namespaces` or any bindings to `wrangler.toml`!**
+
+If you define bindings in `wrangler.toml`, Wrangler will **OVERWRITE and DELETE all bindings configured in the Cloudflare Dashboard**. This includes:
+- KV Namespace bindings
+- Secrets
+- Environment Variables
+- D1 Database bindings
+- R2 Bucket bindings
+- All other bindings
+
+**To preserve your Dashboard bindings:**
+- Configure ALL bindings ONLY in the Cloudflare Dashboard UI
+- NEVER add binding configurations to `wrangler.toml`
+- The current `wrangler.toml` intentionally omits all binding blocks for this reason
 
 ### Setting Up KV Namespaces via Dashboard
 
@@ -413,7 +393,9 @@ Content-Type: application/json
 ### Common Issues
 
 #### KV Namespace Not Found
-Ensure KV namespaces are created and properly bound in `wrangler.toml` or the Dashboard.
+Ensure KV namespaces are created and properly bound **ONLY in the Cloudflare Dashboard**. 
+
+**⚠️ DO NOT add `kv_namespaces` to `wrangler.toml`!** Adding bindings to `wrangler.toml` will overwrite and delete all Dashboard-configured bindings.
 
 #### Webhook Not Receiving Updates
 1. Verify the webhook URL is correct
