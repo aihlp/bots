@@ -1,0 +1,13 @@
+name = "bot"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "./dist/admin"
+
+[vars]
+ENVIRONMENT = "production"
+
+# KV bindings: configured in Cloudflare Dashboard UI only.
+# Do NOT add kv_namespaces here. Wrangler preserves Dashboard bindings.
