@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
+import { serveStatic } from 'hono/cloudflare-workers';
 
 import { webhookHandler } from './api/webhook';
 import { botsRouter } from './api/bots';
@@ -23,6 +24,10 @@ app.use('/api/*', cors());
 
 // Health check
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
+
+// Serve static assets for admin panel
+app.use('/admin/*', serveStatic({ root: './dist/admin' }));
+app.get('/admin', (c) => c.redirect('/admin/'));
 
 // API Routes
 app.route('/api/bots', botsRouter);
