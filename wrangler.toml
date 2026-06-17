@@ -3,13 +3,12 @@ main = "src/index.ts"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
-[assets]
-directory = "./dist/admin"
-binding = "__STATIC_CONTENT"
-
 [vars]
 ENVIRONMENT = "production"
 
-# IMPORTANT: Do NOT add kv_namespaces block here!
+# IMPORTANT: Do NOT add kv_namespaces or bindings block here!
 # Bindings configured in wrangler.toml will OVERWRITE all Dashboard bindings.
 # Configure KV namespaces ONLY in the Cloudflare Dashboard UI.
+# 
+# The admin static assets are served manually via the __STATIC_CONTENT binding
+# which must be configured in the Cloudflare Dashboard as a KV namespace binding.
