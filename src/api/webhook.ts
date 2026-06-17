@@ -18,6 +18,10 @@ const TELEGRAM_API = 'https://api.telegram.org/bot';
 
 export async function webhookHandler(c: Context): Promise<void> {
   const botUsername = c.req.param('bot_username');
+  if (!botUsername) {
+    console.log('Missing bot_username parameter');
+    return;
+  }
   const botConfig = await getBotConfig(c, botUsername);
   
   if (!botConfig || !botConfig.is_active) {
@@ -156,8 +160,8 @@ async function processMessage(c: Context, config: BotConfig, message: TelegramMe
   if (config.streaming) {
     await streamResponse(c, config, message, response);
   } else {
-    const data = await response.json();
-    const assistantMessage = data.choices[0]?.message?.content || '';
+    const data: { choices?: { message?: { content?: string } }[] } = await response.json();
+    const assistantMessage = data.choices?.[0]?.message?.content || '';
     await sendMessage(c, config.telegram_token, message.chat.id, assistantMessage);
     messages.push({ role: 'assistant', content: assistantMessage });
   }
@@ -267,7 +271,7 @@ async function telegramRequest(c: Context, token: string, method: string, params
     throw new Error(`Telegram API error: ${await response.text()}`);
   }
   
-  const data = await response.json();
+  const data: { result?: any } = await response.json();
   return data.result;
 }
 
