@@ -9,5 +9,6 @@ directory = "./dist/admin"
 [vars]
 ENVIRONMENT = "production"
 
-# KV bindings: configured in Cloudflare Dashboard UI only.
-# Do NOT add kv_namespaces here. Wrangler preserves Dashboard bindings.
+# IMPORTANT: Do NOT add kv_namespaces block here!
+# Bindings configured in wrangler.toml will OVERWRITE all Dashboard bindings.
+# Configure KV namespaces ONLY in the Cloudflare Dashboard UI.
