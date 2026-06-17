@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { bearerAuth } from 'hono/bearer-auth';
 import { keysRouter } from './api/keys';
-import { webhookRouter } from './api/webhook';
+import { webhookHandler } from './api/webhook';
 import { settingsRouter } from './api/settings';
 import { botsRouter } from './api/bots';
 import type { BotConfig, Context } from './types';
@@ -43,7 +43,7 @@ app.get('/assets/*', async (c) => {
 
 // API routes
 app.route('/api/keys', keysRouter);
-app.route('/api/webhook', webhookRouter);
+app.post('/api/webhook/:bot_username', webhookHandler);
 app.route('/api/settings', settingsRouter);
 app.route('/api/bots', botsRouter);
 
