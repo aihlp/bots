@@ -472,8 +472,15 @@ describe('worker deployment defects', () => {
     expect(deployScript).toContain('npm run typecheck');
     expect(deployScript).toContain('npm test');
     expect(deployScript).toContain('npx wrangler deploy');
+    expect(deployScript).not.toContain('--remote');
     expect(deployScript).toContain('/storage/kv/namespaces');
     expect(deployScript).toContain('--config wrangler.generated.toml');
+  });
+
+  it('uses a Cloudflare-supported compatibility date', () => {
+    const wranglerConfig = readFileSync('./wrangler.toml', 'utf8');
+
+    expect(wranglerConfig).toMatch(/compatibility_date = "2024-09-23"/);
   });
 
   it('keeps KV namespace IDs out of committed Wrangler config', () => {

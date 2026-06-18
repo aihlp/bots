@@ -111,7 +111,7 @@ SETTINGS_KV_ID="$(resolve_kv_namespace_id SETTINGS_KV)"
 generate_wrangler_config
 
 echo "=== Deploying Worker with Static Assets ==="
-npx wrangler deploy --config wrangler.generated.toml --remote
+npx wrangler deploy --config wrangler.generated.toml
 rm wrangler.generated.toml
 
 echo "=== Deployment Complete! ==="
