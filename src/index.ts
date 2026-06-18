@@ -16,7 +16,9 @@ const app = new Hono<{
     ADMIN_PASSWORD?: string;
     Assets: KVNamespace;
   };
-}>();
+}>({
+  strict: false,
+});
 
 // CORS middleware for admin UI
 app.use('/*', cors());
