@@ -97,7 +97,11 @@ app.get('/assets/*', async (c) => {
   const path = c.req.path.replace('/assets/', '');
   // Read from the Assets KV binding
   try {
-    const fileContent = await c.env.Assets.get(`assets/${path}`);
+    // Try both with and without 'assets/' prefix since upload method may vary
+    let fileContent = await c.env.Assets?.get(`assets/${path}`);
+    if (!fileContent) {
+      fileContent = await c.env.Assets?.get(path);
+    }
     if (fileContent) {
       const contentType = path.endsWith('.css') ? 'text/css' : 
                          path.endsWith('.js') ? 'application/javascript' : 
