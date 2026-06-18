@@ -14,8 +14,10 @@ Upload the built assets from `dist/admin/assets/` to your **Assets** KV namespac
 - Add a KV Namespace binding named `Assets` (or create a new KV namespace)
 - Go to Workers & Pages → KV → Select your Assets namespace
 - Upload each file from `dist/admin/assets/`:
-  - Upload `index-D6ow2Um0.js` with key `assets/index-D6ow2Um0.js`
-  - Upload `index-BndC19cd.css` with key `assets/index-BndC19cd.css`
+  - Upload `index-D6ow2Um0.js` with key `assets/index-D6ow2Um0.js` OR `index-D6ow2Um0.js`
+  - Upload `index-BndC19cd.css` with key `assets/index-BndC19cd.css` OR `index-BndC19cd.css`
+
+Note: The code now tries both key formats (`assets/filename` and just `filename`), so you can upload with either key format.
 
 ### 3. Set Admin Password (Optional)
 For simple browser-based password protection:
