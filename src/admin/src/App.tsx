@@ -31,7 +31,7 @@ interface BotConfig {
 
 function App() {
   return (
-    <BrowserRouter basename="/admin">
+    <BrowserRouter basename="/">
       <div className="min-h-screen bg-gray-900 text-gray-100">
         <nav className="bg-gray-800 p-4">
           <div className="container mx-auto flex gap-4">

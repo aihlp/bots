@@ -6,9 +6,14 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 ENVIRONMENT = "production"
 
-# IMPORTANT: Do NOT add kv_namespaces or bindings block here!
-# Bindings configured in wrangler.toml will OVERWRITE all Dashboard bindings.
-# Configure KV namespaces ONLY in the Cloudflare Dashboard UI.
-# 
-# The admin static assets are served manually via the __STATIC_CONTENT binding
-# which must be configured in the Cloudflare Dashboard as a KV namespace binding.
+# IMPORTANT: Configure KV namespaces ONLY in the Cloudflare Dashboard UI.
+# The following bindings must be configured in the Dashboard:
+# - BOT_REGISTRY: KV namespace for bot configurations
+# - SESSION_KV: KV namespace for user sessions  
+# - KEYS_KV: KV namespace for API keys
+# - SETTINGS_KV: KV namespace for global settings
+# - Assets: KV namespace for admin UI static assets (upload dist/admin/assets contents)
+# - ADMIN_PASSWORD: (optional) Simple password for browser-based auth
+
+# To set ADMIN_PASSWORD, add it as a secret:
+# wrangler secret put ADMIN_PASSWORD
