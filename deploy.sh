@@ -76,7 +76,7 @@ if (source.includes('kv_namespaces = [')) {
   process.exit(1);
 }
 
-fs.writeFileSync('wrangler.generated.toml', source.replace('\n[assets]\n', `\n${kvNamespaces}[assets]\n`));
+fs.writeFileSync('wrangler.generated.toml', source.replace('\n[vars]\n', `\n${kvNamespaces}[vars]\n`));
 NODE
 }
 

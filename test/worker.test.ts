@@ -475,6 +475,7 @@ describe('worker deployment defects', () => {
     expect(deployScript).not.toContain('--remote');
     expect(deployScript).toContain('/storage/kv/namespaces');
     expect(deployScript).toContain('--config wrangler.generated.toml');
+    expect(deployScript).toContain("source.replace('\\n[vars]\\n', `\\n${kvNamespaces}[vars]\\n`)");
   });
 
   it('uses a Cloudflare-supported compatibility date', () => {
