@@ -12,8 +12,13 @@ ENVIRONMENT = "production"
 # - SESSION_KV: KV namespace for user sessions  
 # - KEYS_KV: KV namespace for API keys
 # - SETTINGS_KV: KV namespace for global settings
-# - Assets: KV namespace for admin UI static assets (upload dist/admin/assets contents)
+# - Assets: KV namespace for admin UI static assets
 # - ADMIN_PASSWORD: (optional) Simple password for browser-based auth
 
 # To set ADMIN_PASSWORD, add it as a secret:
 # wrangler secret put ADMIN_PASSWORD
+
+# AFTER DEPLOYMENT: Upload built admin assets to the Assets KV namespace
+# Run these commands after npm run build:admin:
+#   npx wrangler kv key put --binding=Assets "assets/index-D6ow2Um0.js" --path="./dist/admin/assets/index-D6ow2Um0.js"
+#   npx wrangler kv key put --binding=Assets "assets/index-BndC19cd.css" --path="./dist/admin/assets/index-BndC19cd.css"

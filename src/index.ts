@@ -12,9 +12,9 @@ const app = new Hono<{
     SESSION_KV: KVNamespace;
     KEYS_KV: KVNamespace;
     SETTINGS_KV: KVNamespace;
+    Assets: KVNamespace;
     ENVIRONMENT: string;
     ADMIN_PASSWORD?: string;
-    Assets: KVNamespace;
   };
 }>();
 
@@ -55,8 +55,13 @@ const requireAuth = async (c: any, next: any) => {
   return c.text('Unauthorized', 401);
 };
 
+// Helper function placeholder (can be removed if unused)
+const getAssetContent = (_path: string): { content: string; contentType: string } | null => {
+  return null;
+};
+
 // Admin UI routes with password protection
-app.get('/admin', requireAuth, async (c) => {
+app.get('/admin', requireAuth, (c) => {
   return c.html(`<!doctype html>
 <html lang="en">
   <head>
@@ -72,11 +77,8 @@ app.get('/admin', requireAuth, async (c) => {
 </html>`);
 });
 
-app.get('/admin/*', requireAuth, async (c) => {
-  // Serve static assets for admin UI
-  const path = c.req.path.replace('/admin/', '');
-  // For now, redirect all asset requests to the main entry point
-  // In production, you'd serve actual files from KV or use Cloudflare Pages
+app.get('/admin/*', requireAuth, (c) => {
+  // Serve static assets for admin UI - redirect all SPA routes to index
   return c.html(`<!doctype html>
 <html lang="en">
   <head>
@@ -92,7 +94,11 @@ app.get('/admin/*', requireAuth, async (c) => {
 </html>`);
 });
 
-// Serve built admin assets from /assets/* path
+// Serve built admin assets from /assets/* path using KV binding
+// IMPORTANT: After deploying, upload the built assets to the Assets KV namespace:
+// 1. Build the admin UI: npm run build:admin
+// 2. Upload assets to KV: wrangler kv key put --binding=Assets "assets/index-D6ow2Um0.js" --path="./dist/admin/assets/index-D6ow2Um0.js"
+//    wrangler kv key put --binding=Assets "assets/index-BndC19cd.css" --path="./dist/admin/assets/index-BndC19cd.css"
 app.get('/assets/*', async (c) => {
   const path = c.req.path.replace('/assets/', '');
   // Read from the Assets KV binding
