@@ -29,6 +29,7 @@ A multi-tenant Telegram bot platform built on Cloudflare Workers that enables us
                   │  - SESSION_KV    │
                   │  - KEYS_KV       │
                   │  - SETTINGS_KV   │
+                  │  - Assets        │
                   └──────────────────┘
 ```
 
@@ -53,102 +54,24 @@ A multi-tenant Telegram bot platform built on Cloudflare Workers that enables us
 │   │   ├── keys.ts       # API key management
 │   │   └── settings.ts   # Global settings API
 │   └── admin/            # Admin dashboard (separate build)
+├── dist/
+│   └── admin/            # Built admin UI assets (generated after build)
 ├── wrangler.toml         # Cloudflare Workers configuration
 ├── package.json          # Dependencies and scripts
-└── README.md             # This file
+├── deploy.sh             # Automated deployment script
+├── README.md             # This file
+└── DEPLOY_ASSETS.md      # Detailed asset deployment guide
 ```
-
-## Setup Instructions
-
-### 1. Install Dependencies
-
-```bash
-npm install
-```
-
-### 2. Configure Wrangler
-
-The `wrangler.toml` file contains the basic configuration. You may need to update it with your Cloudflare account details:
-
-```toml
-name = "bot"
-main = "src/index.ts"
-compatibility_date = "2024-01-01"
-compatibility_flags = ["nodejs_compat"]
-
-[assets]
-directory = "./dist/admin"
-
-[vars]
-ENVIRONMENT = "production"
-```
-
-### 3. Authenticate with Cloudflare
-
-```bash
-wrangler login
-```
-
-This will open a browser window for authentication.
-
-### 4. Create KV Namespaces
-
-You need to create four KV namespaces for the application to function:
-
-```bash
-# Create namespaces
-wrangler kv namespace create "BOT_REGISTRY"
-wrangler kv namespace create "SESSION_KV"
-wrangler kv namespace create "KEYS_KV"
-wrangler kv namespace create "SETTINGS_KV"
-```
-
-Each command will output a namespace ID. Copy these IDs.
-
-### 5. Update wrangler.toml with KV Namespace IDs
-
-> **⚠️ CRITICAL WARNING: DO NOT ADD kv_namespaces TO wrangler.toml! ⚠️**
-> 
-> If you define `kv_namespaces` in `wrangler.toml`, Wrangler will **OVERWRITE and DELETE all bindings configured in the Cloudflare Dashboard**. This includes ALL KV namespaces, secrets, and other bindings.
-> 
-> **To preserve your Dashboard bindings:**
-> - Configure KV namespace bindings ONLY in the Cloudflare Dashboard UI
-> - NEVER add a `[[kv_namespaces]]` block to `wrangler.toml`
-> - The current `wrangler.toml` intentionally omits `kv_namespaces` for this reason
-> 
-> If you accidentally add `kv_namespaces` to `wrangler.toml` and deploy, you will need to manually re-add all bindings in the Dashboard.
-
-### 6. Build the Admin Dashboard
-
-```bash
-npm run build
-```
-
-This builds both the admin dashboard and the worker.
-
-### 7. Deploy to Cloudflare
-
-```bash
-npm run deploy
-```
-
-Or directly:
-
-```bash
-wrangler deploy
-```
-
-After deployment, note the URL provided (e.g., `https://bot.your-subdomain.workers.dev`).
 
 ---
 
-## Cloudflare Dashboard Configuration
+## ⚠️ IMPORTANT: KV Bindings Must Be Added After Deployment
 
-### ⚠️ CRITICAL WARNING ABOUT BINDINGS ⚠️
+**This project does NOT use `wrangler.toml` for KV namespace bindings.** All KV namespaces must be configured **after deployment** through the Cloudflare Dashboard or CLI commands. This is intentional to prevent accidental overwrites of Dashboard-configured bindings.
 
-**DO NOT add `kv_namespaces` or any bindings to `wrangler.toml`!**
+### Why?
 
-If you define bindings in `wrangler.toml`, Wrangler will **OVERWRITE and DELETE all bindings configured in the Cloudflare Dashboard**. This includes:
+If you define `kv_namespaces` in `wrangler.toml`, Wrangler will **OVERWRITE and DELETE all bindings configured in the Cloudflare Dashboard** during deployment. This includes:
 - KV Namespace bindings
 - Secrets
 - Environment Variables
@@ -156,68 +79,145 @@ If you define bindings in `wrangler.toml`, Wrangler will **OVERWRITE and DELETE 
 - R2 Bucket bindings
 - All other bindings
 
-**To preserve your Dashboard bindings:**
-- Configure ALL bindings ONLY in the Cloudflare Dashboard UI
-- NEVER add binding configurations to `wrangler.toml`
-- The current `wrangler.toml` intentionally omits all binding blocks for this reason
+### Required KV Namespaces
 
-### Setting Up KV Namespaces via Dashboard
+You need to set up these 5 KV namespaces:
 
-If you prefer to configure KV namespaces through the Cloudflare Dashboard:
+| Binding Name | Purpose |
+|--------------|---------|
+| `BOT_REGISTRY` | Stores bot configurations |
+| `SESSION_KV` | Stores user session data |
+| `KEYS_KV` | Stores OpenRouter API keys |
+| `SETTINGS_KV` | Stores global settings |
+| `Assets` | Stores admin UI static assets |
+
+---
+
+## Setup Instructions
+
+### Step 1: Install Dependencies
+
+```bash
+npm install
+```
+
+### Step 2: Build the Admin Dashboard
+
+```bash
+npm run build:admin
+```
+
+This builds the admin UI and outputs files to `dist/admin/`.
+
+### Step 3: Deploy the Worker
+
+```bash
+npm run deploy
+# or
+npx wrangler deploy
+```
+
+### Step 4: Configure KV Namespaces (AFTER Deployment)
+
+After deploying, you need to bind the KV namespaces. You can do this via the **Cloudflare Dashboard** or **CLI**.
+
+#### Option A: Cloudflare Dashboard (Recommended)
 
 1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com/)
-2. Navigate to **Workers & Pages** > **KV**
-3. Click **Create a namespace**
-4. Create the following namespaces:
-   - `BOT_REGISTRY` - Stores bot configurations
-   - `SESSION_KV` - Stores user session data
-   - `KEYS_KV` - Stores OpenRouter API keys
-   - `SETTINGS_KV` - Stores global settings
-
-5. After creating namespaces, go to your Worker in the Dashboard
-6. Click on **Settings** > **Variables**
-7. Under **KV Namespace Bindings**, click **Add Binding**
-8. Add each namespace with its corresponding binding name:
+2. Navigate to **Workers & Pages** → Select your worker
+3. Click **Settings** → **Bindings**
+4. Click **Add Binding** → **KV Namespace**
+5. Add each namespace:
 
 | Variable Name | KV Namespace |
 |---------------|--------------|
-| `BOT_REGISTRY` | Select your BOT_REGISTRY namespace |
-| `SESSION_KV` | Select your SESSION_KV namespace |
-| `KEYS_KV` | Select your KEYS_KV namespace |
-| `SETTINGS_KV` | Select your SETTINGS_KV namespace |
+| `BOT_REGISTRY` | Create or select your BOT_REGISTRY namespace |
+| `SESSION_KV` | Create or select your SESSION_KV namespace |
+| `KEYS_KV` | Create or select your KEYS_KV namespace |
+| `SETTINGS_KV` | Create or select your SETTINGS_KV namespace |
+| `Assets` | Create or select your Assets namespace |
 
-9. Click **Save and Deploy**
+6. Click **Save and Deploy**
 
-### Setting Up Webhooks
+#### Option B: CLI Commands
 
-After deploying your worker, you need to set up the Telegram webhook:
+First, create the KV namespaces:
+
+```bash
+wrangler kv namespace create "BOT_REGISTRY"
+wrangler kv namespace create "SESSION_KV"
+wrangler kv namespace create "KEYS_KV"
+wrangler kv namespace create "SETTINGS_KV"
+wrangler kv namespace create "Assets"
+```
+
+Each command will output a namespace ID. Then manually add the bindings in the Cloudflare Dashboard using these IDs.
+
+### Step 5: Upload Admin Assets to KV (AFTER Deployment)
+
+After deploying and binding the `Assets` KV namespace, upload the built admin assets:
+
+```bash
+# Check actual filenames first (hashes may vary)
+ls dist/admin/assets/
+
+# Upload JavaScript bundle
+npx wrangler kv key put --binding=Assets "assets/index-D6ow2Um0.js" --path="./dist/admin/assets/index-D6ow2Um0.js"
+
+# Upload CSS bundle
+npx wrangler kv key put --binding=Assets "assets/index-BndC19cd.css" --path="./dist/admin/assets/index-BndC19cd.css"
+```
+
+> **Note:** Asset filenames include content hashes (e.g., `index-D6ow2Um0.js`). Always check the actual filenames in `dist/admin/assets/` and adjust the commands accordingly.
+
+### Step 6: Set Admin Password (Optional)
+
+For simple browser-based password protection:
+
+```bash
+wrangler secret put ADMIN_PASSWORD
+```
+
+Enter your desired password when prompted.
+
+---
+
+## Quick Deploy Script
+
+Use the included `deploy.sh` script to automate the entire process:
+
+```bash
+chmod +x deploy.sh
+./deploy.sh
+```
+
+This script will:
+1. Build the admin UI
+2. Deploy the worker
+3. Upload the admin assets to the Assets KV namespace automatically
+
+---
+
+## Accessing the Admin Panel
+
+- **URL**: `https://your-worker-subdomain.workers.dev/admin`
+- If `ADMIN_PASSWORD` is set, your browser will prompt for authentication
+- If no password is set, the admin panel is accessible without authentication
+
+---
+
+## Setting Up Telegram Webhooks
+
+After deployment, configure your Telegram bot webhook:
 
 ```bash
 curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook?url=https://<YOUR_WORKER_SUBDOMAIN>.workers.dev/webhook/<BOT_USERNAME>"
 ```
 
 Replace:
-- `<YOUR_BOT_TOKEN>` with your Telegram bot token
+- `<YOUR_BOT_TOKEN>` with your Telegram bot token from @BotFather
 - `<YOUR_WORKER_SUBDOMAIN>` with your Cloudflare Worker subdomain
 - `<BOT_USERNAME>` with your bot's username (without @)
-
-### Environment Variables
-
-Configure environment variables in the Cloudflare Dashboard:
-
-1. Go to your Worker in the Dashboard
-2. Click **Settings** > **Variables**
-3. Under **Environment Variables**, click **Add Variable**
-4. Add any additional environment variables needed
-
-### Custom Domains (Optional)
-
-To use a custom domain instead of `.workers.dev`:
-
-1. Go to your Worker in the Dashboard
-2. Click **Triggers** > **Custom Domains**
-3. Click **Add Custom Domain**
-4. Enter your domain and follow the DNS configuration instructions
 
 ---
 
@@ -231,11 +231,11 @@ Run the development server with hot reload:
 npm run dev
 ```
 
-This starts Wrangler's local development server. The worker will be available at `http://localhost:8787`.
+The worker will be available at `http://localhost:8787`.
 
 ### Testing Webhooks Locally
 
-To test Telegram webhooks locally, you'll need a tunnel service like ngrok:
+To test Telegram webhooks locally, use a tunnel service like ngrok:
 
 ```bash
 # Install ngrok (if not already installed)
@@ -246,16 +246,6 @@ ngrok http 8787
 
 # Set webhook to ngrok URL
 curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook?url=https://<NGROK_SUBDOMAIN>.ngrok.io/webhook/<BOT_USERNAME>"
-```
-
-### Building for Production
-
-```bash
-# Build admin dashboard and worker
-npm run build
-
-# Deploy
-npm run deploy
 ```
 
 ---
@@ -393,9 +383,19 @@ Content-Type: application/json
 ### Common Issues
 
 #### KV Namespace Not Found
-Ensure KV namespaces are created and properly bound **ONLY in the Cloudflare Dashboard**. 
+Ensure all 5 KV namespaces are created and properly bound in the Cloudflare Dashboard:
+- `BOT_REGISTRY`
+- `SESSION_KV`
+- `KEYS_KV`
+- `SETTINGS_KV`
+- `Assets`
 
 **⚠️ DO NOT add `kv_namespaces` to `wrangler.toml`!** Adding bindings to `wrangler.toml` will overwrite and delete all Dashboard-configured bindings.
+
+#### Admin Assets Not Loading
+1. Verify the `Assets` KV namespace is bound in the Dashboard
+2. Ensure assets were uploaded with correct keys (include `assets/` prefix)
+3. Check that filenames in `/src/index.ts` match the actual built files
 
 #### Webhook Not Receiving Updates
 1. Verify the webhook URL is correct
