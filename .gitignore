@@ -1,17 +1,140 @@
 ```
+# Dependencies
+node_modules/
+
 # Build artifacts
 dist/
 build/
-# Dependencies
-node_modules/
-# Logs and temp files
+*.o
+*.obj
+*.out
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.ENV
+.python-version
+
+# Logs
 *.log
-*.tmp
-# Environment
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
 .env
 .env.local
 .env.*
-# Editors
+
+# IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Compressed files
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+
+# Rust (if applicable)
+target/
+Cargo.lock
+
+# Go (if applicable)
+*.mod
+*.sum
+
+# Java (if applicable)
+*.class
+*.jar
+*.war
+*.ear
+*.war
+*.sar
+*.rar
+*.par
+target/
+.gradle/
+!gradle.properties
+
+# C/C++ (if applicable)
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# TypeScript/JavaScript build
+*.tsbuildinfo
+*.js.map
+*.ts.map
+
+# Ruby (if applicable)
+*.gem
+*.rbc
+.bundle/
+.ruby-version
+
+# PHP (if applicable)
+vendor/
+
+# .NET (if applicable)
+bin/
+obj/
+*.sln
+*.csproj.user
+
+# Julia (if applicable)
+.julia/
+
+# Zig (if applicable)
+zig-cache/
+zig-out/
+
+# MyPy (if applicable)
+.mypy_cache/
+
+# Pytest (if applicable)
+.pytest_cache/
+
+# Jupyter notebooks
+.ipynb_checkpoints/
 ```

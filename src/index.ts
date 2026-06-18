@@ -63,8 +63,8 @@ app.get('/admin', requireAuth, async (c) => {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bot Admin Panel</title>
-    <script type="module" crossorigin src="/assets/index-D6ow2Um0.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BndC19cd.css">
+    <script type="module" crossorigin src="/assets/index-C_xZF3lt.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-D8XpMmI_.css">
   </head>
   <body class="bg-gray-900 text-gray-100">
     <div id="root"></div>
@@ -83,8 +83,8 @@ app.get('/admin/*', requireAuth, async (c) => {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bot Admin Panel</title>
-    <script type="module" crossorigin src="/assets/index-D6ow2Um0.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BndC19cd.css">
+    <script type="module" crossorigin src="/assets/index-C_xZF3lt.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-D8XpMmI_.css">
   </head>
   <body class="bg-gray-900 text-gray-100">
     <div id="root"></div>
