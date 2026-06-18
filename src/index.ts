@@ -109,10 +109,15 @@ app.get('/assets/*', async (c) => {
       fileContent = await c.env.Assets?.get(path);
     }
     if (fileContent) {
-      const contentType = path.endsWith('.css') ? 'text/css' : 
-                         path.endsWith('.js') ? 'application/javascript' : 
+      const contentType = path.endsWith('.css') ? 'text/css; charset=utf-8' : 
+                         path.endsWith('.js') ? 'application/javascript; charset=utf-8' : 
                          'application/octet-stream';
-      return c.body(fileContent, 200, { 'Content-Type': contentType });
+      return new Response(fileContent, {
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=31536000, immutable'
+        }
+      });
     }
   } catch (e) {
     console.error('Error serving asset:', e);
