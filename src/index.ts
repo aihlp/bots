@@ -61,38 +61,25 @@ const getAssetContent = (_path: string): { content: string; contentType: string 
 };
 
 // Admin UI routes with password protection
-app.get('/admin', requireAuth, (c) => {
-  return c.html(`<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bot Admin Panel</title>
-    <script type="module" crossorigin src="/assets/index-D6ow2Um0.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BndC19cd.css">
-  </head>
-  <body class="bg-gray-900 text-gray-100">
-    <div id="root"></div>
-  </body>
-</html>`);
+
+
+
+app.get('/admin', requireAuth, async (c) => {
+  const indexFile = await c.env.Assets?.get('index.html');
+  if (indexFile) {
+    return c.html(indexFile as string);
+  }
+  return c.text('Admin UI not found', 404);
 });
 
-app.get('/admin/*', requireAuth, (c) => {
-  // Serve static assets for admin UI - redirect all SPA routes to index
-  return c.html(`<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bot Admin Panel</title>
-    <script type="module" crossorigin src="/assets/index-D6ow2Um0.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BndC19cd.css">
-  </head>
-  <body class="bg-gray-900 text-gray-100">
-    <div id="root"></div>
-  </body>
-</html>`);
+app.get('/admin/*', requireAuth, async (c) => {
+  const indexFile = await c.env.Assets?.get('index.html');
+  if (indexFile) {
+    return c.html(indexFile as string);
+  }
+  return c.text('Admin UI not found', 404);
 });
+
 
 // Serve built admin assets from /assets/* path using KV binding
 // IMPORTANT: After deploying, upload the built assets to the Assets KV namespace:
@@ -120,13 +107,30 @@ app.get('/assets/*', async (c) => {
   return c.text('Asset not found', 404);
 });
 
+// Root route redirects to admin
+app.get('/', (c) => {
+  return c.redirect('/admin');
+});
+
 // API routes with password protection
 app.route('/api/keys', keysRouter);
 app.post('/api/webhook/:bot_username', webhookHandler);
 app.route('/api/settings', settingsRouter);
 app.route('/api/bots', botsRouter);
 
-// Health check
-app.get('/health', (c) => c.json({ status: 'ok' }));
-
+// Health check with binding diagnostics
+app.get('/health', (c) => {
+  const required = ['BOT_REGISTRY', 'SESSION_KV', 'KEYS_KV', 'SETTINGS_KV', 'Assets'];
+  const missing: string[] = [];
+  for (const key of required) {
+    if (!(key in c.env) || (c.env as any)[key] === undefined) {
+      missing.push(key);
+    }
+  }
+  if (missing.length > 0) {
+    return c.json({ status: 'misconfigured', missing }, 500);
+  }
+  return c.json({ status: 'ok' });
+});
+  // 
 export default app;
