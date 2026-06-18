@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
-import type { Context, BotConfig } from '../types';
-import { listBots, getBotConfig, saveBotConfig, deleteBot } from '../types';
+import type { BotConfig, Context } from '../types';
+import { deleteBot, getBotConfig, listBots, saveBotConfig, sanitizeBotConfig } from '../types';
 
 export const botsRouter = new Hono<{ Bindings: Context['env'] }>();
 
@@ -8,7 +8,7 @@ export const botsRouter = new Hono<{ Bindings: Context['env'] }>();
 botsRouter.get('/', async (c) => {
   try {
     const bots = await listBots(c as unknown as Context);
-    return c.json(bots);
+    return c.json(bots.map(sanitizeBotConfig));
   } catch (error) {
     console.error('Error listing bots:', error);
     return c.json({ error: 'Failed to list bots' }, 500);
@@ -19,7 +19,7 @@ botsRouter.get('/', async (c) => {
 botsRouter.post('/', async (c) => {
   try {
     const body = await c.req.json<Partial<BotConfig>>();
-    
+
     if (!body.username || !body.telegram_token) {
       return c.json({ error: 'username and telegram_token are required' }, 400);
     }
@@ -43,6 +43,7 @@ botsRouter.post('/', async (c) => {
       session_ttl: body.session_ttl || 3600,
       group_mode: body.group_mode || 'all',
       mention_trigger: body.mention_trigger || '',
+      admin_user_ids: body.admin_user_ids ?? [],
       reply_to_mentions: body.reply_to_mentions ?? true,
       commands: body.commands || [],
       inline_keyboard_template: body.inline_keyboard_template,
@@ -56,10 +57,11 @@ botsRouter.post('/', async (c) => {
         presence_penalty: 0,
       },
       streaming: body.streaming ?? true,
+      webhook_secret: body.webhook_secret || undefined,
     };
 
     await saveBotConfig(c as unknown as Context, config);
-    return c.json(config, 201);
+    return c.json(sanitizeBotConfig(config), 201);
   } catch (error) {
     console.error('Error creating bot:', error);
     return c.json({ error: 'Failed to create bot' }, 500);
@@ -71,12 +73,12 @@ botsRouter.get('/:username', async (c) => {
   try {
     const username = c.req.param('username');
     const bot = await getBotConfig(c as unknown as Context, username);
-    
+
     if (!bot) {
       return c.json({ error: 'Bot not found' }, 404);
     }
-    
-    return c.json(bot);
+
+    return c.json(sanitizeBotConfig(bot));
   } catch (error) {
     console.error('Error getting bot:', error);
     return c.json({ error: 'Failed to get bot' }, 500);
@@ -88,7 +90,7 @@ botsRouter.put('/:username', async (c) => {
   try {
     const username = c.req.param('username');
     const body = await c.req.json<Partial<BotConfig>>();
-    
+
     const existing = await getBotConfig(c as unknown as Context, username);
     if (!existing) {
       return c.json({ error: 'Bot not found' }, 404);
@@ -98,10 +100,13 @@ botsRouter.put('/:username', async (c) => {
       ...existing,
       ...body,
       username, // ensure username doesn't change
+      telegram_token: body.telegram_token || existing.telegram_token,
+      webhook_secret: body.webhook_secret || existing.webhook_secret,
+      admin_user_ids: body.admin_user_ids ?? existing.admin_user_ids ?? [],
     };
 
     await saveBotConfig(c as unknown as Context, updated);
-    return c.json(updated);
+    return c.json(sanitizeBotConfig(updated));
   } catch (error) {
     console.error('Error updating bot:', error);
     return c.json({ error: 'Failed to update bot' }, 500);

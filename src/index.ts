@@ -1,136 +1,121 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { keysRouter } from './api/keys';
-import { webhookHandler } from './api/webhook';
-import { settingsRouter } from './api/settings';
+import { HTTPException } from 'hono/http-exception';
+import type { Fetcher, KVNamespace } from '@cloudflare/workers-types';
 import { botsRouter } from './api/bots';
-import type { BotConfig, Context } from './types';
+import { keysRouter } from './api/keys';
+import { settingsRouter } from './api/settings';
+import { webhookRouter } from './api/webhook';
+import type { Bindings } from './types';
 
-const app = new Hono<{
-  Bindings: {
-    BOT_REGISTRY: KVNamespace;
-    SESSION_KV: KVNamespace;
-    KEYS_KV: KVNamespace;
-    SETTINGS_KV: KVNamespace;
-    Assets: KVNamespace;
-    ENVIRONMENT: string;
-    ADMIN_PASSWORD?: string;
-  };
-}>();
+const app = new Hono<{ Bindings: Bindings }>();
 
-// CORS middleware for admin UI
-app.use('/*', cors());
+app.use('*', cors());
+app.use('/admin', requireAuth);
+app.use('/admin/*', requireAuth);
+app.use('/api/bots', requireAuth);
+app.use('/api/bots/*', requireAuth);
+app.use('/api/keys', requireAuth);
+app.use('/api/keys/*', requireAuth);
+app.use('/api/settings', requireAuth);
+app.use('/api/settings/*', requireAuth);
 
-// Simple password protection middleware
-const requireAuth = async (c: any, next: any) => {
-  const adminPassword = c.env.ADMIN_PASSWORD;
-  
-  // If no password is set, allow access
-  if (!adminPassword) {
-    return await next();
-  }
-  
-  // Check for session cookie
-  const sessionCookie = c.req.header('Cookie');
-  if (sessionCookie && sessionCookie.includes('admin_auth=true')) {
-    return await next();
-  }
-  
-  // Check Authorization header for basic auth
-  const authHeader = c.req.header('Authorization');
-  if (authHeader && authHeader.startsWith('Basic ')) {
-    try {
-      const credentials = atob(authHeader.slice(6));
-      const [, password] = credentials.split(':');
-      if (password === adminPassword) {
-        return await next();
-      }
-    } catch (e) {
-      // Invalid auth header
-    }
-  }
-  
-  // Return 401 with WWW-Authenticate header to trigger browser login
-  c.header('WWW-Authenticate', 'Basic realm="Admin Area"');
-  return c.text('Unauthorized', 401);
-};
-
-// Helper function placeholder (can be removed if unused)
-const getAssetContent = (_path: string): { content: string; contentType: string } | null => {
-  return null;
-};
-
-// Admin UI routes with password protection
-
-
-
-app.get('/admin', requireAuth, async (c) => {
-  const indexFile = await c.env.Assets?.get('index.html');
-  if (indexFile) {
-    return c.html(indexFile as string);
-  }
-  return c.text('Admin UI not found', 404);
-});
-
-app.get('/admin/*', requireAuth, async (c) => {
-  const indexFile = await c.env.Assets?.get('index.html');
-  if (indexFile) {
-    return c.html(indexFile as string);
-  }
-  return c.text('Admin UI not found', 404);
-});
-
-
-// Serve built admin assets from /assets/* path using KV binding
-// IMPORTANT: After deploying, upload the built assets to the Assets KV namespace:
-// 1. Build the admin UI: npm run build:admin
-// 2. Upload assets to KV: wrangler kv key put --binding=Assets "assets/index-D6ow2Um0.js" --path="./dist/admin/assets/index-D6ow2Um0.js"
-//    wrangler kv key put --binding=Assets "assets/index-BndC19cd.css" --path="./dist/admin/assets/index-BndC19cd.css"
-app.get('/assets/*', async (c) => {
-  const path = c.req.path.replace('/assets/', '');
-  // Read from the Assets KV binding
-  try {
-    // Try both with and without 'assets/' prefix since upload method may vary
-    let fileContent = await c.env.Assets?.get(`assets/${path}`);
-    if (!fileContent) {
-      fileContent = await c.env.Assets?.get(path);
-    }
-    if (fileContent) {
-      const contentType = path.endsWith('.css') ? 'text/css' : 
-                         path.endsWith('.js') ? 'application/javascript' : 
-                         'application/octet-stream';
-      return c.body(fileContent, 200, { 'Content-Type': contentType });
-    }
-  } catch (e) {
-    console.error('Error serving asset:', e);
-  }
-  return c.text('Asset not found', 404);
-});
-
-// Root route redirects to admin
-app.get('/', (c) => {
-  return c.redirect('/admin');
-});
-
-// API routes with password protection
-app.route('/api/keys', keysRouter);
-app.post('/api/webhook/:bot_username', webhookHandler);
-app.route('/api/settings', settingsRouter);
 app.route('/api/bots', botsRouter);
+app.route('/api/keys', keysRouter);
+app.route('/api/settings', settingsRouter);
+app.route('/api/webhook', webhookRouter);
 
-// Health check with binding diagnostics
-app.get('/health', (c) => {
-  const required = ['BOT_REGISTRY', 'SESSION_KV', 'KEYS_KV', 'SETTINGS_KV', 'Assets'];
-  const missing: string[] = [];
-  for (const key of required) {
-    if (!(key in c.env) || (c.env as any)[key] === undefined) {
-      missing.push(key);
-    }
-  }
-  if (missing.length > 0) {
-    return c.json({ status: 'misconfigured', missing }, 500);
-  }
-  return c.json({ status: 'ok' });
+app.get('/health', healthHandler);
+
+app.get('/', (c) => {
+  return c.redirect('/admin', 302);
 });
-  // 
+
+app.get('/admin', serveAdmin);
+app.get('/admin/*', serveAdmin);
+app.get('/assets/*', serveAsset);
+
+app.notFound((c) => {
+  return jsonResponse(c, { error: 'not_found' }, 404);
+});
+
+app.onError((error, c) => {
+  if (error instanceof HTTPException) {
+    return jsonResponse(c, { error: error.message }, error.status);
+  }
+  console.error('Unhandled worker error', error);
+  return jsonResponse(c, { error: 'internal_error' }, 500);
+});
+
 export default app;
+
+function requireAuth(c: any, next: () => Promise<void> | void) {
+  const adminPassword = c.env.ADMIN_PASSWORD;
+  const authorization = c.req.header('Authorization');
+
+  if (!adminPassword || !authorization || !authorization.startsWith('Basic ')) {
+    c.header('WWW-Authenticate', 'Basic realm="bots admin"');
+    return c.json({ error: 'unauthorized' }, 401);
+  }
+
+  const encoded = authorization.slice('Basic '.length);
+  const decoded = atob(encoded);
+  const [, password] = decoded.split(':');
+
+  if (password !== adminPassword) {
+    return c.json({ error: 'unauthorized' }, 401);
+  }
+
+  return next();
+}
+
+async function serveAdmin(c: any) {
+  const assets = c.env.ASSETS;
+  if (!assets || typeof assets.fetch !== 'function') {
+    return jsonResponse(c, { error: 'Admin static assets are not configured' }, 500);
+  }
+
+  const response = await assets.fetch(c.req.raw);
+  if (response.ok && response.headers.get('content-type')?.includes('text/html')) {
+    return response;
+  }
+
+  return jsonResponse(c, { error: 'Admin UI asset is not available' }, 500);
+}
+
+async function serveAsset(c: any) {
+  const assets = c.env.ASSETS;
+  if (!assets || typeof assets.fetch !== 'function') {
+    return jsonResponse(c, { error: 'Static assets are not configured' }, 500);
+  }
+
+  const response = await assets.fetch(c.req.raw);
+  if (response.ok) {
+    return response;
+  }
+
+  return jsonResponse(c, { error: 'asset_not_found' }, 404);
+}
+
+async function healthHandler(c: any) {
+  const requiredBindings = ['BOT_REGISTRY', 'SESSION_KV', 'KEYS_KV', 'SETTINGS_KV', 'Assets', 'ASSETS'];
+  const missing = requiredBindings.filter((name) => !c.env[name]);
+
+  if (missing.length > 0) {
+    return jsonResponse(c, { status: 'misconfigured', missing }, 500);
+  }
+
+  return jsonResponse(c, { status: 'ok' }, 200);
+}
+
+function jsonResponse<T>(c: any, body: T, status: number): Response {
+  return c.json(body, status, corsHeaders());
+}
+
+function corsHeaders(): Record<string, string> {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Telegram-Bot-Api-Secret-Token',
+  };
+}

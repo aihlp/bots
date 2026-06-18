@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
-import type { Context, ApiKey } from '../types';
-import { listApiKeys, saveApiKey, deleteApiKey } from '../types';
+import type { ApiKey, Context } from '../types';
+import { deleteApiKey, listApiKeys, saveApiKey, sanitizeApiKey } from '../types';
 
 export const keysRouter = new Hono<{ Bindings: Context['env'] }>();
 
@@ -19,7 +19,7 @@ keysRouter.get('/', async (c) => {
 keysRouter.post('/', async (c) => {
   try {
     const body = await c.req.json<{ name: string; key: string }>();
-    
+
     if (!body.name || !body.key) {
       return c.json({ error: 'name and key are required' }, 400);
     }
@@ -33,7 +33,7 @@ keysRouter.post('/', async (c) => {
     };
 
     await saveApiKey(c as unknown as Context, apiKey);
-    return c.json({ id: apiKey.id, name: apiKey.name, created_at: apiKey.created_at }, 201);
+    return c.json(sanitizeApiKey(apiKey), 201);
   } catch (error) {
     console.error('Error creating key:', error);
     return c.json({ error: 'Failed to create key' }, 500);

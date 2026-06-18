@@ -1,3 +1,5 @@
+import type { Fetcher, KVNamespace } from '@cloudflare/workers-types';
+
 export interface BotConfig {
   username: string;
   telegram_token: string;
@@ -11,6 +13,7 @@ export interface BotConfig {
   session_ttl: number;
   group_mode: 'all' | 'mention_only' | 'admin_only';
   mention_trigger: string;
+  admin_user_ids?: number[];
   reply_to_mentions: boolean;
   commands: { command: string; description: string }[];
   inline_keyboard_template?: Record<string, unknown>;
@@ -27,6 +30,7 @@ export interface BotConfig {
     presence_penalty: number;
   };
   streaming: boolean;
+  webhook_secret?: string;
 }
 
 export interface ApiKey {
@@ -42,15 +46,29 @@ export interface GlobalSettings {
   fallback_openrouter_key?: string;
 }
 
-export type Context = import('hono').Context<{
-  Bindings: {
-    BOT_REGISTRY: KVNamespace;
-    SESSION_KV: KVNamespace;
-    KEYS_KV: KVNamespace;
-    SETTINGS_KV: KVNamespace;
-    ENVIRONMENT: string;
-  };
-}>;
+export type PublicBotConfig = Omit<BotConfig, 'telegram_token' | 'webhook_secret'> & {
+  telegram_token_set: boolean;
+  webhook_secret_set: boolean;
+};
+
+export type PublicApiKey = Omit<ApiKey, 'key'> & { key_set: boolean };
+
+export type PublicSettings = Omit<GlobalSettings, 'fallback_openrouter_key'> & {
+  fallback_openrouter_key_set: boolean;
+};
+
+export interface Bindings {
+  BOT_REGISTRY: KVNamespace;
+  SESSION_KV: KVNamespace;
+  KEYS_KV: KVNamespace;
+  SETTINGS_KV: KVNamespace;
+  Assets?: KVNamespace;
+  ASSETS: Fetcher;
+  ENVIRONMENT: string;
+  ADMIN_PASSWORD?: string;
+}
+
+export type Context = import('hono').Context<{ Bindings: Bindings }>;
 
 const BOT_PREFIX = 'bot:';
 const KEY_PREFIX = 'key:';
@@ -87,14 +105,14 @@ export async function saveApiKey(c: Context, key: ApiKey): Promise<void> {
   await c.env.KEYS_KV.put(`${KEY_PREFIX}${key.id}`, JSON.stringify(key));
 }
 
-export async function listApiKeys(c: Context): Promise<Omit<ApiKey, 'key'>[]> {
+export async function listApiKeys(c: Context): Promise<PublicApiKey[]> {
   const keys = await c.env.KEYS_KV.list({ prefix: KEY_PREFIX });
-  const apiKeys: Omit<ApiKey, 'key'>[] = [];
+  const apiKeys: PublicApiKey[] = [];
   for (const key of keys.keys) {
     const data = await c.env.KEYS_KV.get(key.name);
     if (data) {
       const parsed: ApiKey = JSON.parse(data);
-      apiKeys.push({ id: parsed.id, name: parsed.name, created_at: parsed.created_at } as Omit<ApiKey, 'key'>); // mask key
+      apiKeys.push({ id: parsed.id, name: parsed.name, created_at: parsed.created_at, key_set: Boolean(parsed.key) });
     }
   }
   return apiKeys;
@@ -111,4 +129,30 @@ export async function getGlobalSettings(c: Context): Promise<GlobalSettings | nu
 
 export async function saveGlobalSettings(c: Context, settings: GlobalSettings): Promise<void> {
   await c.env.SETTINGS_KV.put('global', JSON.stringify(settings));
+}
+
+export function sanitizeBotConfig(bot: BotConfig): PublicBotConfig {
+  const { telegram_token, webhook_secret, ...publicBot } = bot;
+  return {
+    ...publicBot,
+    telegram_token_set: Boolean(telegram_token),
+    webhook_secret_set: Boolean(webhook_secret),
+  };
+}
+
+export function sanitizeApiKey(key: ApiKey): PublicApiKey {
+  return {
+    id: key.id,
+    name: key.name,
+    created_at: key.created_at,
+    key_set: Boolean(key.key),
+  };
+}
+
+export function sanitizeSettings(settings: GlobalSettings): PublicSettings {
+  return {
+    default_max_history: settings.default_max_history,
+    default_session_ttl: settings.default_session_ttl,
+    fallback_openrouter_key_set: Boolean(settings.fallback_openrouter_key),
+  };
 }
