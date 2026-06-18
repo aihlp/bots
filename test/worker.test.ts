@@ -167,6 +167,11 @@ describe('worker deployment defects', () => {
     expect(assetsResponse.status).toBe(500);
     expect(await assetsResponse.json()).toEqual({ status: 'misconfigured', missing: ['ASSETS'] });
 
+    const legacyAssetsOnlyMissing = envWith({ Assets: undefined });
+    const legacyAssetsOnlyMissingResponse = await app.fetch(new Request('http://localhost/health'), legacyAssetsOnlyMissing);
+    expect(legacyAssetsOnlyMissingResponse.status).toBe(200);
+    expect(await legacyAssetsOnlyMissingResponse.json()).toEqual({ status: 'ok' });
+
     const missingMultiple = envWith({ BOT_REGISTRY: undefined, SESSION_KV: undefined, ASSETS: undefined });
     const multipleResponse = await app.fetch(new Request('http://localhost/health'), missingMultiple);
     expect(multipleResponse.status).toBe(500);
@@ -308,7 +313,8 @@ describe('worker deployment defects', () => {
   it('processes successful Telegram webhook updates and preserves streaming assistant history', async () => {
     const bots = createKV({ 'bot:stream_bot': JSON.stringify(botRecord({ username: 'stream_bot' })) });
     const sessions = createKV();
-    const env = envWith({ BOT_REGISTRY: bots, SESSION_KV: sessions });
+    const keys = createKV({ 'key:key-1': JSON.stringify({ id: 'key-1', name: 'primary', key: 'sk-or-secret' }) });
+    const env = envWith({ BOT_REGISTRY: bots, SESSION_KV: sessions, KEYS_KV: keys });
 
     globalThis.fetch = vi.fn(async (request) => {
       const url = typeof request === 'string' ? request : request.url;
@@ -346,6 +352,49 @@ describe('worker deployment defects', () => {
     ]);
   });
 
+  it('returns controlled errors for missing and failed OpenRouter keys', async () => {
+    const missingKeyBot = createKV({ 'bot:missing_key_bot': JSON.stringify(botRecord({ username: 'missing_key_bot' })) });
+    const missingKeyEnv = envWith({ BOT_REGISTRY: missingKeyBot });
+    globalThis.fetch = vi.fn(async () => new Response(JSON.stringify({ error: 'missing key' }), { status: 401 }));
+
+    const missingKeyResponse = await app.fetch(
+      new Request('http://localhost/api/webhook/missing_key_bot', {
+        method: 'POST',
+        body: JSON.stringify({
+          update_id: 1,
+          message: { message_id: 1, from: { id: 7, first_name: 'User' }, chat: { id: 123, type: 'private' }, text: 'hello' },
+        }),
+      }),
+      missingKeyEnv,
+    );
+
+    expect(missingKeyResponse.status).toBe(502);
+    expect(await jsonBody(missingKeyResponse)).toEqual({ ok: false, error: 'missing_openrouter_key' });
+
+    const failureBot = createKV({
+      'bot:openrouter_failure_bot': JSON.stringify(
+        botRecord({ username: 'openrouter_failure_bot', openrouter_key_id: 'key-1' }),
+      ),
+    });
+    const keys = createKV({ 'key:key-1': JSON.stringify({ id: 'key-1', name: 'primary', key: 'sk-or-secret' }) });
+    const failureEnv = envWith({ BOT_REGISTRY: failureBot, KEYS_KV: keys });
+    globalThis.fetch = vi.fn(async () => new Response(JSON.stringify({ error: 'upstream failure' }), { status: 500 }));
+
+    const failureResponse = await app.fetch(
+      new Request('http://localhost/api/webhook/openrouter_failure_bot', {
+        method: 'POST',
+        body: JSON.stringify({
+          update_id: 1,
+          message: { message_id: 1, from: { id: 7, first_name: 'User' }, chat: { id: 123, type: 'private' }, text: 'hello' },
+        }),
+      }),
+      failureEnv,
+    );
+
+    expect(failureResponse.status).toBe(502);
+    expect(await jsonBody(failureResponse)).toEqual({ ok: false, error: 'openrouter_error' });
+  });
+
   it('honors group admin_only mode without disabling private chats', async () => {
     const processedCalls = vi.fn(async (request) => {
       const url = typeof request === 'string' ? request : request.url;
@@ -360,7 +409,7 @@ describe('worker deployment defects', () => {
         botRecord({ username: 'group_bot', group_mode: 'admin_only', admin_user_ids: [42], streaming: false }),
       ),
     });
-    const env = envWith({ BOT_REGISTRY: adminBot });
+    const env = envWith({ BOT_REGISTRY: adminBot, KEYS_KV: createKV({ 'key:key-1': JSON.stringify({ id: 'key-1', name: 'primary', key: 'sk-or-secret' }) }) });
     globalThis.fetch = processedCalls;
 
     const adminResponse = await app.fetch(
@@ -418,7 +467,30 @@ describe('worker deployment defects', () => {
 
     expect(deployScript).not.toContain('wrangler kv key put');
     expect(deployScript).not.toMatch(/index-[A-Za-z0-9_-]+\.(js|css)/);
+    expect(deployScript).toContain('npm ci');
     expect(deployScript).toContain('npm run build:admin');
+    expect(deployScript).toContain('npm run typecheck');
+    expect(deployScript).toContain('npm test');
     expect(deployScript).toContain('npx wrangler deploy');
+    expect(deployScript).toContain('/storage/kv/namespaces');
+    expect(deployScript).toContain('--config wrangler.generated.toml');
+  });
+
+  it('keeps KV namespace IDs out of committed Wrangler config', () => {
+    const wranglerConfig = readFileSync('./wrangler.toml', 'utf8');
+    const deployScript = readFileSync('./deploy.sh', 'utf8');
+    const workflow = readFileSync('./.github/workflows/deploy.yml', 'utf8');
+
+    expect(wranglerConfig).not.toContain('kv_namespaces');
+    expect(workflow).toContain('run: ./deploy.sh');
+    expect(workflow).not.toMatch(/(?:BOT_REGISTRY_ID|SESSION_KV_ID|KEYS_KV_ID|SETTINGS_KV_ID):/);
+
+    for (const binding of ['BOT_REGISTRY', 'SESSION_KV', 'KEYS_KV', 'SETTINGS_KV']) {
+      expect(deployScript).toContain(`['${binding}', process.env.${binding}_ID]`);
+    }
+
+    expect(wranglerConfig).not.toMatch(/id = "[a-f0-9]{32}"/i);
+    expect(deployScript).not.toMatch(/id = "[a-f0-9]{32}"/i);
+    expect(workflow).not.toMatch(/CLOUDFLARE_ACCOUNT_ID:\s*[a-f0-9]{32}/i);
   });
 });

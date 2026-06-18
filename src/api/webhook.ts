@@ -185,6 +185,9 @@ async function processMessage(
   // Get API key
   const apiKeyRecord = await c.env.KEYS_KV.get(`key:${config.openrouter_key_id}`);
   const apiKey = apiKeyRecord ? JSON.parse(apiKeyRecord).key : '';
+  if (!apiKey) {
+    return { ok: false, error: 'missing_openrouter_key' };
+  }
 
   // Call OpenRouter with streaming
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {

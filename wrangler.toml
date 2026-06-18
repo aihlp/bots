@@ -12,10 +12,9 @@ binding = "ASSETS"
 not_found_handling = "single-page-application"
 run_worker_first = ["/api/*", "/health", "/admin/*", "/"]
 
-# Dashboard-first bindings:
-# - BOT_REGISTRY, SESSION_KV, KEYS_KV, SETTINGS_KV: KV namespaces
-# - Assets: legacy KV namespace retained for dashboard compatibility
-# - ADMIN_PASSWORD: add as a Worker secret, never in this file
+# KV namespace IDs are resolved at deploy time from Cloudflare by name and
+# injected into a generated Wrangler config so real IDs are never committed.
+# ADMIN_PASSWORD must be added as a Worker secret, never in this file.
 #
 # Static admin assets are uploaded by Wrangler from [assets].directory and
 # exposed to the Worker as ASSETS. Do not commit real KV namespace IDs here.

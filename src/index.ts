@@ -98,7 +98,7 @@ async function serveAsset(c: any) {
 }
 
 async function healthHandler(c: any) {
-  const requiredBindings = ['BOT_REGISTRY', 'SESSION_KV', 'KEYS_KV', 'SETTINGS_KV', 'Assets', 'ASSETS'];
+  const requiredBindings = ['BOT_REGISTRY', 'SESSION_KV', 'KEYS_KV', 'SETTINGS_KV', 'ASSETS'];
   const missing = requiredBindings.filter((name) => !c.env[name]);
 
   if (missing.length > 0) {
